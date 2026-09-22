@@ -1,0 +1,10 @@
+{
+  "description": "Streamline your printing business with an intuitive platform for order management, design proofs, payments, and customer tracking, enhancing efficiency and organization.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
