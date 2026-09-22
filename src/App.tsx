@@ -1,4 +1,5 @@
 import { FormEvent, MouseEvent, ReactNode, useMemo, useState } from "react";
+import { login as apiLogin, register as apiRegister } from "./api/authApi";
 
 type Role = "customer" | "production" | "delivery" | "admin";
 type Page = string;
@@ -329,29 +330,302 @@ function WorkflowDetail({ role, go, toast }: { role: Role; go: (p: Page) => void
 function Login({ onLogin }: { onLogin: (role: Role) => void }) {
   const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [role, setRole] = useState<Role>("customer");
-  const [email, setEmail] = useState("priya@printflow.in");
-  const [password, setPassword] = useState("printflow");
+
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("testcustomer@printflow.com");
+  const [password, setPassword] = useState("Test@1234");
+
   const [show, setShow] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const submit = (e: FormEvent) => {
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (mode === "forgot") { if (!email.includes("@")) setErrors({ email: "Enter a valid email address." }); else setMode("login"); return; }
+
+    if (mode === "forgot") {
+      if (!email.includes("@")) {
+        setErrors({ email: "Enter a valid email address." });
+      } else {
+        setErrors({});
+        alert("Password reset is not connected yet.");
+      }
+      return;
+    }
+
     const next: Record<string, string> = {};
-    if (!email) next.email = "This field is required."; else if (!email.includes("@")) next.email = "Enter a valid email address.";
-    if (!password) next.password = "This field is required.";
+
+    if (mode === "register" && !fullName.trim()) {
+      next.fullName = "Full name is required.";
+    }
+
+    if (!email) {
+      next.email = "This field is required.";
+    } else if (!email.includes("@")) {
+      next.email = "Enter a valid email address.";
+    }
+
+    if (!password) {
+      next.password = "This field is required.";
+    }
+
     setErrors(next);
-    if (!Object.keys(next).length) onLogin(role);
+
+    if (Object.keys(next).length > 0) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (mode === "register") {
+        await apiRegister({
+          fullName: fullName.trim(),
+          email: email.trim(),
+          password,
+          role: "CUSTOMER",
+        });
+
+        alert("Registration successful. Please sign in.");
+
+        setMode("login");
+        setPassword("");
+        setErrors({});
+        return;
+      }
+
+      const response = await apiLogin({
+        email: email.trim(),
+        password,
+      });
+
+      console.log("PrintFlow login successful:", response);
+
+      onLogin(role);
+
+    } catch (error) {
+      console.error("PrintFlow authentication error:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Authentication failed.";
+
+      setErrors({
+        general: message,
+      });
+
+    } finally {
+      setLoading(false);
+    }
   };
-  return <main className="auth-page"><section className="auth-form"><Logo /><div className="auth-inner"><div className="eyebrow">PRINT MANAGEMENT, SIMPLIFIED</div><h1>{mode === "login" ? "Welcome back" : mode === "register" ? "Create your account" : "Reset your password"}</h1><p>{mode === "forgot" ? "We’ll send a reset link to your registered email." : "Sign in to manage orders from design to delivery."}</p>
-    {mode === "login" && <div className="role-pills">{(["customer", "production", "delivery", "admin"] as Role[]).map((r) => <button className={role === r ? "active" : ""} key={r} onClick={() => setRole(r)}>{roleLabel[r]}</button>)}</div>}
-    <form onSubmit={submit}><Field label="Email address" required type="email" value={email} onChange={setEmail} error={errors.email} placeholder="name@company.com" />
-      {mode !== "forgot" && <label className={`field ${errors.password ? "has-error" : ""}`}><span>Password<em>*</em></span><div className="password-input"><input type={show ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} /><button type="button" aria-label="Show password" onClick={() => setShow(!show)}><Icon name="eye" /></button></div>{errors.password && <small>{errors.password}</small>}</label>}
-      {mode === "register" && <Field label="Phone number" placeholder="+91 98765 43210" />}
-      <div className="auth-meta">{mode === "login" && <label><input type="checkbox" defaultChecked /> Remember me</label>}<button type="button" onClick={() => setMode(mode === "forgot" ? "login" : "forgot")}>{mode === "forgot" ? "Back to login" : "Forgot password?"}</button></div>
-      <Button type="submit">{mode === "login" ? `Sign in to ${roleLabel[role]} portal` : mode === "register" ? "Create account" : "Send reset link"}</Button>
-    </form>{mode !== "forgot" && <p className="auth-switch">{mode === "login" ? "New to PrintFlow?" : "Already have an account?"} <button onClick={() => setMode(mode === "login" ? "register" : "login")}>{mode === "login" ? "Create account" : "Sign in"}</button></p>}</div>
-    <small className="copyright">© 2025 PrintFlow Digital. Pune, Maharashtra.</small></section>
-    <section className="auth-visual"><img src="/assets/printing-machine.jpg" alt="Commercial printing machine producing colourful prints" /><div className="visual-overlay"><span>FROM DESIGN TO DELIVERY</span><h2>We print your ideas<br />with precision.</h2><p>Fast quotations, clear approvals and on-time production — all in one workflow.</p><div><b><Icon name="check" /> Quick orders</b><b><Icon name="check" /> Quality prints</b><b><Icon name="check" /> On-time delivery</b></div></div><a href="https://unsplash.com/@bank_phrom" target="_blank" rel="noreferrer">Photo by Bank Phrom on Unsplash</a></section></main>;
+
+  return (
+    <main className="auth-page">
+      <section className="auth-form">
+        <Logo />
+
+        <div className="auth-inner">
+          <div className="eyebrow">PRINT MANAGEMENT, SIMPLIFIED</div>
+
+          <h1>
+            {mode === "login"
+              ? "Welcome back"
+              : mode === "register"
+                ? "Create your account"
+                : "Reset your password"}
+          </h1>
+
+          <p>
+            {mode === "forgot"
+              ? "We’ll send a reset link to your registered email."
+              : "Sign in to manage orders from design to delivery."}
+          </p>
+
+          {mode === "login" && (
+            <div className="role-pills">
+              {(["customer", "production", "delivery", "admin"] as Role[]).map(
+                (r) => (
+                  <button
+                    type="button"
+                    className={role === r ? "active" : ""}
+                    key={r}
+                    onClick={() => setRole(r)}
+                  >
+                    {roleLabel[r]}
+                  </button>
+                )
+              )}
+            </div>
+          )}
+
+          <form onSubmit={submit}>
+
+            {mode === "register" && (
+              <Field
+                label="Full Name"
+                required
+                value={fullName}
+                onChange={setFullName}
+                error={errors.fullName}
+                placeholder="Your full name"
+              />
+            )}
+
+            <Field
+              label="Email address"
+              required
+              type="email"
+              value={email}
+              onChange={setEmail}
+              error={errors.email}
+              placeholder="name@company.com"
+            />
+
+            {mode !== "forgot" && (
+              <label
+                className={`field ${
+                  errors.password ? "has-error" : ""
+                }`}
+              >
+                <span>
+                  Password<em>*</em>
+                </span>
+
+                <div className="password-input">
+                  <input
+                    type={show ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+
+                  <button
+                    type="button"
+                    aria-label="Show password"
+                    onClick={() => setShow(!show)}
+                  >
+                    <Icon name="eye" />
+                  </button>
+                </div>
+
+                {errors.password && (
+                  <small>{errors.password}</small>
+                )}
+              </label>
+            )}
+
+            {mode === "forgot" && errors.general && (
+              <small className="field-error">
+                {errors.general}
+              </small>
+            )}
+
+            {errors.general && mode !== "forgot" && (
+              <div className="field-error">
+                {errors.general}
+              </div>
+            )}
+
+            <div className="auth-meta">
+              {mode === "login" && (
+                <label>
+                  <input type="checkbox" defaultChecked />
+                  Remember me
+                </label>
+              )}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMode(mode === "forgot" ? "login" : "forgot")
+                }
+              >
+                {mode === "forgot"
+                  ? "Back to login"
+                  : "Forgot password?"}
+              </button>
+            </div>
+
+            <Button type="submit" disabled={loading}>
+              {loading
+                ? "Please wait..."
+                : mode === "login"
+                  ? `Sign in to ${roleLabel[role]} portal`
+                  : mode === "register"
+                    ? "Create account"
+                    : "Send reset link"}
+            </Button>
+          </form>
+
+          {mode !== "forgot" && (
+            <p className="auth-switch">
+              {mode === "login"
+                ? "New to PrintFlow?"
+                : "Already have an account?"}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMode(mode === "login" ? "register" : "login")
+                }
+              >
+                {mode === "login"
+                  ? "Create account"
+                  : "Sign in"}
+              </button>
+            </p>
+          )}
+        </div>
+
+        <small className="copyright">
+          © 2025 PrintFlow Digital. Pune, Maharashtra.
+        </small>
+      </section>
+
+      <section className="auth-visual">
+        <img
+          src="/assets/printing-machine.jpg"
+          alt="Commercial printing machine producing colourful prints"
+        />
+
+        <div className="visual-overlay">
+          <span>FROM DESIGN TO DELIVERY</span>
+
+          <h2>
+            We print your ideas
+            <br />
+            with precision.
+          </h2>
+
+          <p>
+            Fast quotations, clear approvals and on-time production —
+            all in one workflow.
+          </p>
+
+          <div>
+            <b>
+              <Icon name="check" /> Quick orders
+            </b>
+
+            <b>
+              <Icon name="check" /> Quality prints
+            </b>
+
+            <b>
+              <Icon name="check" /> On-time delivery
+            </b>
+          </div>
+        </div>
+
+        <a
+          href="https://unsplash.com/@bank_phrom"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Photo by Bank Phrom on Unsplash
+        </a>
+      </section>
+    </main>
+  );
 }
 
 export default function App() {

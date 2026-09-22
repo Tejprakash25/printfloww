@@ -1,0 +1,22 @@
+package com.printflow.backend.entity;
+
+public enum OrderStatus {
+    ORDER_PLACED,
+    QUOTATION_PENDING,
+    QUOTATION_SENT,
+    QUOTATION_ACCEPTED,
+    QUOTATION_REJECTED,
+    PROOF_PENDING,
+    CHANGE_REQUESTED,
+    APPROVED,
+    IN_PRODUCTION,
+    QUALITY_CHECK,
+    READY,
+    OUT_FOR_DELIVERY,
+    DELIVERED,
+    PICKUP_READY,
+    PICKED_UP,
+    PAYMENT_PENDING,
+    COMPLETED,
+    CANCELLED
+}
